@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Local dev server (Express).
  * On Vercel, serverless handlers in /api are used instead.
  */
@@ -6,7 +6,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
-const { getStore, MAX_HISTORY, ALLOWED_ITEMS } = require('./lib/store');
+const { getStore, saveStore, MAX_HISTORY, ALLOWED_ITEMS } = require('./lib/store');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -24,7 +24,7 @@ function checkAuth(req, res, next) {
   next();
 }
 
-app.get('/api/v1/commands', checkAuth, (req, res) => {
+function handleGetCommands(req, res) {
   const store = getStore();
   const deviceId = (req.query.deviceId || '').trim();
   if (!deviceId) return res.status(400).json({ error: 'deviceId required' });
@@ -38,16 +38,20 @@ app.get('/api/v1/commands', checkAuth, (req, res) => {
   });
 
   const cmd = store.pending.get(deviceId);
-  if (!cmd) return res.status(204).end();
+  if (!cmd) {
+    saveStore();
+    return res.status(204).end();
+  }
 
   store.pending.delete(deviceId);
   cmd.deliveredAt = new Date().toISOString();
   cmd.status = 'delivered';
+  saveStore();
 
   res.json({ id: cmd.id, items: cmd.items, emailTo: cmd.emailTo });
-});
+}
 
-app.post('/api/v1/commands/:id/ack', checkAuth, (req, res) => {
+function handleAckCommand(req, res) {
   const store = getStore();
   const { id } = req.params;
   const { status = 'done', message = '' } = req.body || {};
@@ -56,11 +60,12 @@ app.post('/api/v1/commands/:id/ack', checkAuth, (req, res) => {
     entry.status = status;
     entry.ackMessage = message;
     entry.ackedAt = new Date().toISOString();
+    saveStore();
   }
   res.json({ ok: true });
-});
+}
 
-app.post('/api/v1/commands', checkAuth, (req, res) => {
+function handleCreateCommand(req, res) {
   const store = getStore();
   const { deviceId, items, emailTo } = req.body || {};
   const to = (emailTo || 'ankitraj01567@gmail.com').trim();
@@ -101,11 +106,12 @@ app.post('/api/v1/commands', checkAuth, (req, res) => {
       createdAt: new Date().toISOString(),
     });
   }
+  saveStore();
 
   res.status(201).json(command);
-});
+}
 
-app.get('/api/v1/devices', checkAuth, (req, res) => {
+function handleGetDevices(req, res) {
   const store = getStore();
   const list = Array.from(store.devices.values()).sort((a, b) => {
     const ta = a.lastSeen || a.createdAt || '';
@@ -113,13 +119,32 @@ app.get('/api/v1/devices', checkAuth, (req, res) => {
     return tb.localeCompare(ta);
   });
   res.json(list);
-});
+}
+
+// Support both /api/v1 and /api routes
+app.get('/api/v1/commands', checkAuth, handleGetCommands);
+app.get('/api/commands', checkAuth, handleGetCommands);
+
+app.post('/api/v1/commands/:id/ack', checkAuth, handleAckCommand);
+app.post('/api/commands/:id/ack', checkAuth, handleAckCommand);
+
+app.post('/api/v1/commands', checkAuth, handleCreateCommand);
+app.post('/api/commands', checkAuth, handleCreateCommand);
+
+app.get('/api/v1/devices', checkAuth, handleGetDevices);
+app.get('/api/devices', checkAuth, handleGetDevices);
 
 app.get('/api/v1/commands/history', checkAuth, (req, res) => {
   res.json(getStore().history.slice(0, 50));
 });
+app.get('/api/commands/history', checkAuth, (req, res) => {
+  res.json(getStore().history.slice(0, 50));
+});
 
 app.get('/api/v1/commands/pending', checkAuth, (req, res) => {
+  res.json(Array.from(getStore().pending.values()));
+});
+app.get('/api/commands/pending', checkAuth, (req, res) => {
   res.json(Array.from(getStore().pending.values()));
 });
 

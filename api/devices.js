@@ -1,4 +1,4 @@
-const { getStore } = require('../lib/store');
+﻿const { getStore } = require('../lib/store');
 
 function checkAuth(req) {
   const token = process.env.API_TOKEN || '';

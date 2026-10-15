@@ -1,5 +1,5 @@
-const { v4: uuidv4 } = require('uuid');
-const { getStore, MAX_HISTORY, ALLOWED_ITEMS } = require('../lib/store');
+﻿const { v4: uuidv4 } = require('uuid');
+const { getStore, saveStore, MAX_HISTORY, ALLOWED_ITEMS } = require('../lib/store');
 
 function checkAuth(req) {
   const token = process.env.API_TOKEN || '';
@@ -19,8 +19,13 @@ function send(res, status, body) {
 }
 
 module.exports = async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
   if (req.method === 'OPTIONS') {
-    return send(res, 204, '');
+    res.statusCode = 204;
+    return res.end();
   }
 
   if (!checkAuth(req)) {
@@ -30,6 +35,16 @@ module.exports = async function handler(req, res) {
   const store = getStore();
   const url = new URL(req.url, 'http://localhost');
   const path = url.pathname.replace(/^\/api\/v1/, '').replace(/^\/api/, '') || '/';
+
+  // GET /devices or GET /api/v1/devices
+  if (req.method === 'GET' && (path === '/devices' || path.endsWith('/devices'))) {
+    const list = Array.from(store.devices.values()).sort((a, b) => {
+      const ta = a.lastSeen || a.createdAt || '';
+      const tb = b.lastSeen || b.createdAt || '';
+      return tb.localeCompare(ta);
+    });
+    return send(res, 200, list);
+  }
 
   // GET /commands?deviceId=  (APK poll)
   if (req.method === 'GET' && (path === '/commands' || path.endsWith('/commands'))) {
@@ -46,6 +61,7 @@ module.exports = async function handler(req, res) {
 
     const cmd = store.pending.get(deviceId);
     if (!cmd) {
+      saveStore();
       res.statusCode = 204;
       res.setHeader('Access-Control-Allow-Origin', '*');
       return res.end();
@@ -54,6 +70,7 @@ module.exports = async function handler(req, res) {
     store.pending.delete(deviceId);
     cmd.deliveredAt = new Date().toISOString();
     cmd.status = 'delivered';
+    saveStore();
 
     return send(res, 200, {
       id: cmd.id,
@@ -136,6 +153,7 @@ module.exports = async function handler(req, res) {
         createdAt: new Date().toISOString(),
       });
     }
+    saveStore();
 
     return send(res, 201, command);
   }
@@ -161,6 +179,7 @@ module.exports = async function handler(req, res) {
       entry.status = status;
       entry.ackMessage = message;
       entry.ackedAt = new Date().toISOString();
+      saveStore();
     }
     return send(res, 200, { ok: true });
   }
