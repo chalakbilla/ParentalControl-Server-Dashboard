@@ -36,7 +36,7 @@ module.exports = async function handler(req, res) {
   const url = new URL(req.url, 'http://localhost');
   const path = url.pathname.replace(/^\/api\/v1/, '').replace(/^\/api/, '') || '/';
 
-  // GET /devices or GET /api/v1/devices
+  // GET /devices
   if (req.method === 'GET' && (path === '/devices' || path.endsWith('/devices'))) {
     const list = Array.from(store.devices.values()).sort((a, b) => {
       const ta = a.lastSeen || a.createdAt || '';
@@ -44,6 +44,59 @@ module.exports = async function handler(req, res) {
       return tb.localeCompare(ta);
     });
     return send(res, 200, list);
+  }
+
+  // GET /reports
+  if (req.method === 'GET' && (path === '/reports' || path.endsWith('/reports'))) {
+    if (!store.reports) store.reports = [];
+    const deviceId = (url.searchParams.get('deviceId') || '').trim();
+    if (deviceId) {
+      return send(res, 200, store.reports.filter((r) => r.deviceId === deviceId).slice(0, 50));
+    }
+    return send(res, 200, store.reports.slice(0, 50));
+  }
+
+  // POST /reports (upload report directly from APK)
+  if (req.method === 'POST' && (path === '/reports' || path.endsWith('/reports'))) {
+    let body = req.body;
+    if (typeof body === 'string') {
+      try { body = JSON.parse(body); } catch { return send(res, 400, { error: 'Invalid JSON' }); }
+    }
+    if (!body || typeof body !== 'object') {
+      try {
+        const chunks = [];
+        for await (const chunk of req) chunks.push(chunk);
+        body = JSON.parse(Buffer.concat(chunks).toString() || '{}');
+      } catch {
+        return send(res, 400, { error: 'Invalid JSON' });
+      }
+    }
+
+    const { deviceId, subject, body: reportText, items, screenshotPath } = body || {};
+    if (!store.reports) store.reports = [];
+    const reportEntry = {
+      id: 'rep_' + uuidv4().replace(/-/g, '').slice(0, 10),
+      deviceId: (deviceId || 'unknown').trim(),
+      subject: subject || 'Parental Control Report',
+      body: reportText || '',
+      items: items || [],
+      screenshotPath: screenshotPath || '',
+      receivedAt: new Date().toISOString(),
+    };
+
+    store.reports.unshift(reportEntry);
+    if (store.reports.length > MAX_HISTORY) store.reports.pop();
+
+    const dev = store.devices.get(reportEntry.deviceId) || {};
+    store.devices.set(reportEntry.deviceId, {
+      ...dev,
+      deviceId: reportEntry.deviceId,
+      lastSeen: new Date().toISOString(),
+      latestReport: reportEntry,
+    });
+
+    saveStore();
+    return send(res, 201, { ok: true, reportId: reportEntry.id });
   }
 
   // GET /commands?deviceId=  (APK poll)
@@ -99,7 +152,6 @@ module.exports = async function handler(req, res) {
         return send(res, 400, { error: 'Invalid JSON' });
       }
     }
-    // Vercel may not parse body automatically in all runtimes
     if (!body || typeof body !== 'object') {
       const chunks = [];
       for await (const chunk of req) chunks.push(chunk);

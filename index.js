@@ -13,7 +13,7 @@ const PORT = process.env.PORT || 3000;
 const API_TOKEN = process.env.API_TOKEN || '';
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '15mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 function checkAuth(req, res, next) {
@@ -121,7 +121,46 @@ function handleGetDevices(req, res) {
   res.json(list);
 }
 
-// Support both /api/v1 and /api routes
+function handleCreateReport(req, res) {
+  const store = getStore();
+  const { deviceId, subject, body, items, screenshotPath } = req.body || {};
+  if (!store.reports) store.reports = [];
+  const reportEntry = {
+    id: 'rep_' + uuidv4().replace(/-/g, '').slice(0, 10),
+    deviceId: (deviceId || 'unknown').trim(),
+    subject: subject || 'Parental Control Report',
+    body: body || '',
+    items: items || [],
+    screenshotPath: screenshotPath || '',
+    receivedAt: new Date().toISOString(),
+  };
+
+  store.reports.unshift(reportEntry);
+  if (store.reports.length > MAX_HISTORY) store.reports.pop();
+
+  const dev = store.devices.get(reportEntry.deviceId) || {};
+  store.devices.set(reportEntry.deviceId, {
+    ...dev,
+    deviceId: reportEntry.deviceId,
+    lastSeen: new Date().toISOString(),
+    latestReport: reportEntry,
+  });
+
+  saveStore();
+  res.status(201).json({ ok: true, reportId: reportEntry.id });
+}
+
+function handleGetReports(req, res) {
+  const store = getStore();
+  if (!store.reports) store.reports = [];
+  const deviceId = (req.query.deviceId || '').trim();
+  if (deviceId) {
+    return res.json(store.reports.filter((r) => r.deviceId === deviceId).slice(0, 50));
+  }
+  res.json(store.reports.slice(0, 50));
+}
+
+// Routes
 app.get('/api/v1/commands', checkAuth, handleGetCommands);
 app.get('/api/commands', checkAuth, handleGetCommands);
 
@@ -133,6 +172,12 @@ app.post('/api/commands', checkAuth, handleCreateCommand);
 
 app.get('/api/v1/devices', checkAuth, handleGetDevices);
 app.get('/api/devices', checkAuth, handleGetDevices);
+
+app.post('/api/v1/reports', checkAuth, handleCreateReport);
+app.post('/api/reports', checkAuth, handleCreateReport);
+
+app.get('/api/v1/reports', checkAuth, handleGetReports);
+app.get('/api/reports', checkAuth, handleGetReports);
 
 app.get('/api/v1/commands/history', checkAuth, (req, res) => {
   res.json(getStore().history.slice(0, 50));

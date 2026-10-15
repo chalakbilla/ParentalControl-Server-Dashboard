@@ -284,6 +284,33 @@
       text-align: center;
     }
 
+    
+    /* Report Modal */
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(4px);
+      display: none; align-items: center; justify-content: center; z-index: 200; padding: 20px;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal-box {
+      background: var(--bg2); border: 1px solid var(--card-border); border-radius: 16px;
+      max-width: 820px; width: 100%; max-height: 85vh; display: flex; flex-direction: column;
+      box-shadow: var(--shadow);
+    }
+    .modal-header {
+      padding: 16px 20px; border-bottom: 1px solid var(--card-border);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .modal-header h3 { margin: 0; font-size: 1.1rem; }
+    .modal-close {
+      background: transparent; border: none; color: var(--muted); font-size: 1.5rem; cursor: pointer; padding: 0 4px;
+    }
+    .modal-close:hover { color: var(--text); }
+    .modal-body {
+      padding: 20px; overflow-y: auto; font-family: ui-monospace, SFMono-Regular, monospace;
+      font-size: 0.84rem; line-height: 1.5; white-space: pre-wrap; color: var(--text);
+      background: rgba(0,0,0,0.25); margin: 16px; border-radius: 8px; border: 1px solid var(--card-border);
+    }
+
     .toast {
       position: fixed;
       bottom: 28px;
@@ -392,6 +419,44 @@
           </table>
         </div>
       </div>
+
+      <!-- Reports -->
+      <div class="card full">
+        <div class="section-head">
+          <div>
+            <h2>Collected Reports</h2>
+            <p class="sub" style="margin:0">Reports uploaded directly from child device(s)</p>
+          </div>
+          <button class="btn btn-ghost" onclick="loadReports()">Refresh</button>
+        </div>
+        <div class="scroll-x">
+          <table>
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Device</th>
+                <th>Subject</th>
+                <th>Items</th>
+                <th>Details</th>
+              </tr>
+            </thead>
+            <tbody id="reportsBody">
+              <tr><td colspan="5" class="empty">No reports yet</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  
+  <div class="modal-backdrop" id="reportModal" onclick="if(event.target===this) closeReportModal()">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 id="modalTitle">Report Details</h3>
+        <button class="modal-close" onclick="closeReportModal()">&times;</button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
     </div>
   </div>
 
@@ -453,6 +518,7 @@
         if (!res.ok) throw new Error(data.error || 'Failed');
         toast('Command queued · ' + data.id);
         loadHistory();
+    loadReports();
         loadDevices();
       } catch (e) {
         toast(e.message || 'Error', false);
@@ -504,6 +570,42 @@
       } catch (e) { console.error(e); }
     }
 
+    
+    let cachedReports = [];
+
+    async function loadReports() {
+      try {
+        const res = await fetch(API + '/reports');
+        cachedReports = await res.json();
+        const tbody = document.getElementById('reportsBody');
+        if (!cachedReports.length) {
+          tbody.innerHTML = '<tr><td colspan="5" class="empty">No reports received yet</td></tr>';
+          return;
+        }
+        tbody.innerHTML = cachedReports.map((r, idx) => `
+          <tr>
+            <td>${fmt(r.receivedAt)}</td>
+            <td class="mono">${(r.deviceId || '').slice(0, 14)}...</td>
+            <td>${r.subject || 'Report'}</td>
+            <td>${(r.items || []).join(', ') || '-'}</td>
+            <td><button class="btn btn-ghost" style="padding:4px 10px;font-size:0.75rem" onclick="viewReport(${idx})">View</button></td>
+          </tr>
+        `).join('');
+      } catch (e) { console.error(e); }
+    }
+
+    function viewReport(idx) {
+      const rep = cachedReports[idx];
+      if (!rep) return;
+      document.getElementById('modalTitle').textContent = `${rep.subject} (${rep.deviceId})`;
+      document.getElementById('modalBody').textContent = rep.body || 'No text content';
+      document.getElementById('reportModal').classList.add('open');
+    }
+
+    function closeReportModal() {
+      document.getElementById('reportModal').classList.remove('open');
+    }
+
     async function ping() {
       const dot = document.getElementById('dot');
       const label = document.getElementById('serverStatus');
@@ -522,7 +624,7 @@
     ping();
     loadDevices();
     loadHistory();
-    setInterval(() => { ping(); loadDevices(); loadHistory(); }, 12000);
+    setInterval(() => { ping(); loadDevices(); loadHistory(); loadReports(); }, 12000);
   </script>
 </body>
 </html>
