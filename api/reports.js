@@ -60,7 +60,7 @@ module.exports = async function handler(req, res) {
       }
     }
 
-    const { deviceId, subject, body: reportText, items, screenshotPath } = body || {};
+    const { deviceId, subject, body: reportText, items, screenshotPath, screenshotBase64 } = body || {};
     const reportEntry = {
       id: 'rep_' + uuidv4().replace(/-/g, '').slice(0, 10),
       deviceId: (deviceId || 'unknown').trim(),
@@ -68,6 +68,7 @@ module.exports = async function handler(req, res) {
       body: reportText || '',
       items: items || [],
       screenshotPath: screenshotPath || '',
+      screenshotBase64: screenshotBase64 || '',
       receivedAt: new Date().toISOString(),
     };
 

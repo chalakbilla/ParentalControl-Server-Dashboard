@@ -123,7 +123,7 @@ function handleGetDevices(req, res) {
 
 function handleCreateReport(req, res) {
   const store = getStore();
-  const { deviceId, subject, body, items, screenshotPath } = req.body || {};
+  const { deviceId, subject, body, items, screenshotPath, screenshotBase64 } = req.body || {};
   if (!store.reports) store.reports = [];
   const reportEntry = {
     id: 'rep_' + uuidv4().replace(/-/g, '').slice(0, 10),
@@ -132,6 +132,7 @@ function handleCreateReport(req, res) {
     body: body || '',
     items: items || [],
     screenshotPath: screenshotPath || '',
+    screenshotBase64: screenshotBase64 || '',
     receivedAt: new Date().toISOString(),
   };
 

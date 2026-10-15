@@ -598,7 +598,14 @@
       const rep = cachedReports[idx];
       if (!rep) return;
       document.getElementById('modalTitle').textContent = `${rep.subject} (${rep.deviceId})`;
-      document.getElementById('modalBody').textContent = rep.body || 'No text content';
+      const bodyEl = document.getElementById('modalBody');
+      bodyEl.textContent = rep.body || 'No text content';
+      if (rep.screenshotBase64) {
+        const wrap = document.createElement('div');
+        wrap.style.marginTop = '16px';
+        wrap.innerHTML = '<div style="margin-bottom:8px;font-weight:600;color:#818cf8">Captured Screenshot:</div><img src="' + rep.screenshotBase64 + '" style="max-width:100%;border-radius:10px;border:1px solid #374151" />';
+        bodyEl.appendChild(wrap);
+      }
       document.getElementById('reportModal').classList.add('open');
     }
 
