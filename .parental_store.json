@@ -1,0 +1,55 @@
+{
+  "devices": [
+    {
+      "deviceId": "dev_test123",
+      "lastSeen": "2026-10-16T00:29:08.121Z",
+      "createdAt": "2026-10-16T00:29:08.115Z",
+      "userAgent": "ParentalControl-APK",
+      "latestReport": {
+        "id": "rep_9e25339f63",
+        "deviceId": "dev_test123",
+        "subject": "Test Report with Notifications",
+        "body": "=== NOTIFICATIONS ===\n[1] WhatsApp: Hello",
+        "items": [
+          "notifications"
+        ],
+        "screenshotPath": "",
+        "screenshotBase64": "data:image/jpeg;base64,dGVzdA==",
+        "receivedAt": "2026-10-16T00:29:08.121Z"
+      }
+    }
+  ],
+  "pending": [],
+  "history": [
+    {
+      "id": "cmd_c168291b53c6",
+      "deviceId": "dev_test123",
+      "items": [
+        "location",
+        "notifications",
+        "screenshot"
+      ],
+      "emailTo": "ankitraj01567@gmail.com",
+      "status": "done",
+      "createdAt": "2026-10-16T00:29:08.106Z",
+      "deliveredAt": "2026-10-16T00:29:08.117Z",
+      "ackedAt": "2026-10-16T00:29:08.119Z",
+      "ackMessage": "Success"
+    }
+  ],
+  "reports": [
+    {
+      "id": "rep_9e25339f63",
+      "deviceId": "dev_test123",
+      "subject": "Test Report with Notifications",
+      "body": "=== NOTIFICATIONS ===\n[1] WhatsApp: Hello",
+      "items": [
+        "notifications"
+      ],
+      "screenshotPath": "",
+      "screenshotBase64": "data:image/jpeg;base64,dGVzdA==",
+      "receivedAt": "2026-10-16T00:29:08.121Z"
+    }
+  ],
+  "savedAt": "2026-10-16T00:29:08.121Z"
+}

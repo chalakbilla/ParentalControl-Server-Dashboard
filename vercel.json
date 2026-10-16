@@ -12,35 +12,11 @@
   ],
   "routes": [
     {
-      "src": "/api/v1/devices",
-      "dest": "/api/devices.js"
-    },
-    {
-      "src": "/api/devices",
-      "dest": "/api/devices.js"
-    },
-    {
-      "src": "/api/v1/reports",
-      "dest": "/api/reports.js"
-    },
-    {
-      "src": "/api/reports",
-      "dest": "/api/reports.js"
-    },
-    {
-      "src": "/api/v1/commands/(.*)",
+      "src": "/api/v1/(.*)",
       "dest": "/api/commands.js"
     },
     {
-      "src": "/api/v1/commands",
-      "dest": "/api/commands.js"
-    },
-    {
-      "src": "/api/commands/(.*)",
-      "dest": "/api/commands.js"
-    },
-    {
-      "src": "/api/commands",
+      "src": "/api/(.*)",
       "dest": "/api/commands.js"
     },
     {

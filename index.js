@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Local dev server (Express).
  * On Vercel, serverless handlers in /api are used instead.
  */
@@ -13,7 +13,7 @@ const PORT = process.env.PORT || 3000;
 const API_TOKEN = process.env.API_TOKEN || '';
 
 app.use(cors());
-app.use(express.json({ limit: '15mb' }));
+app.use(express.json({ limit: '25mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 function checkAuth(req, res, next) {

